@@ -287,6 +287,62 @@ def add_percent(df_counts: pd.DataFrame, value_col: str, count_col: str = "count
         out["percent"] = (out[count_col] / out[count_col].sum()) * 100
     return out
 
+
+def parse_class_key(class_name: str, college_order=None):
+    import re
+    text = str(class_name or "").strip()
+    if not text:
+        return (len(college_order) if college_order is not None else 999, "", 0, "")
+
+    # 從 PREFIX_TO_COLLEGE 匹配最長前綴決定學院
+    college = "未分類"
+    for p in sorted(PREFIX_TO_COLLEGE.keys(), key=len, reverse=True):
+        if text.startswith(p):
+            college = PREFIX_TO_COLLEGE[p]
+            break
+
+    college_rank = college_order.index(college) if college_order and college in college_order else (len(college_order) if college_order else 999)
+
+    m = re.match(r'^(.+?)([一二三123])([A-Za-z])$', text)
+    if m:
+        prefix = m.group(1)
+        year_str = m.group(2)
+        class_str = m.group(3)
+        year_num = {'一': 1, '二': 2, '三': 3, '1': 1, '2': 2, '3': 3}.get(year_str, 0)
+        return (college_rank, prefix, year_num, class_str)
+
+    return (college_rank, text, 0, "")
+
+
+def apply_normalized_order(result: pd.DataFrame, col: str, college_order, class_order=None):
+    if col not in result.columns:
+        return result
+
+    if col == "學院":
+        order = college_order
+    elif col == "班級":
+        if class_order is None:
+            unique_classes = result[col].dropna().astype(str).unique()
+            class_order = sorted(unique_classes, key=lambda c: parse_class_key(c, college_order))
+        order = class_order
+    else:
+        return result
+
+    result[col] = pd.Categorical(result[col].astype(str), categories=order, ordered=True)
+    sort_cols = [col] + [c for c in result.columns if c != col]
+    result = result.sort_values(sort_cols)
+    return result
+
+
+def normalize_display_table(df):
+    out = df.copy()
+    if "count" in out.columns:
+        out = out.rename(columns={"count": "人數"})
+    if "percent" in out.columns:
+        out = out.rename(columns={"percent": "百分比"})
+        out["百分比"] = out["百分比"].astype(float).round(2).map(lambda x: f"{x:.2f}%")
+    return out
+
 def k(name: str) -> str:
     g = group_col if group_col else "nogroup"
     return f"{question}|{qtype}|{g}|{name}"
@@ -297,28 +353,32 @@ def k(name: str) -> str:
 st.title("115學年度大二學生學習投入分析")
 
 with st.sidebar:
-    st.header("資料來源")
-    path = st.text_input("Excel 路徑", FILE_PATH)
-    sheet = st.text_input("Sheet 名稱（留空=第一個）", "")
-
     st.header("分析設定")
     top_n = 12
     top_k_rank = 3
 
     show_pct = st.checkbox("顯示百分比（%）", value=False)
 
-    pct_mode = None
-    if show_pct:
-        pct_mode = st.radio(
-            "百分比母體",
-            ["全體百分比", "分組：組內（各組=100%）"],
-            index=1,
-        )
+    # 母體篩選（可不選，留空即全校）
+    population_attrs = st.multiselect(
+        "母體欄位（可複選）", ["學院", "班級"], default=[]
+    )
+
+selected_colleges = []
+selected_classes = []
+
+pct_mode = None
+if show_pct:
+    pct_mode = st.radio(
+        "百分比母體",
+        ["全體百分比", "分組：組內（各組=100%）"],
+        index=1,
+    )
 
     st.divider()
     st.caption("提示：若分組欄位（如『班級』『性別』『學院』）沒出現在清單，可在下方改名或先在前處理新增欄位。")
 
-df = load_excel(path, sheet if sheet.strip() else None)
+df = load_excel(FILE_PATH, DEFAULT_SHEET)
 df = add_college_column( # 學院標籤
     df,
     class_col="班級",
@@ -326,6 +386,48 @@ df = add_college_column( # 學院標籤
     prefix_to_college=PREFIX_TO_COLLEGE,
     unknown="未分類",
 )
+
+# 學院預設順序，沿用大一
+college_order = list(dict.fromkeys(PREFIX_TO_COLLEGE.values()))
+
+# 選擇母體值
+if "學院" in population_attrs and "學院" in df.columns:
+    with st.sidebar:
+        college_values = [x for x in college_order if x in df["學院"].dropna().astype(str).unique()]
+        # 若有未歸類也放最後
+        extras = [x for x in sorted(df["學院"].dropna().astype(str).unique()) if x not in college_values]
+        selected_colleges = st.multiselect(
+            "選取學院（可多選）",
+            college_values + extras,
+            default=[],
+        )
+if "班級" in population_attrs and "班級" in df.columns:
+    with st.sidebar:
+        class_values = df["班級"].dropna().astype(str).unique()
+        class_ordered = sorted(class_values, key=lambda c: parse_class_key(c, college_order))
+        selected_classes = st.multiselect(
+            "選取班級（可多選）",
+            class_ordered,
+            default=[],
+        )
+
+# 母體過濾（學院/班級）
+mask = pd.Series(True, index=df.index)
+if population_attrs:
+    if selected_colleges or selected_classes:
+        mask = pd.Series(False, index=df.index)
+        if selected_colleges:
+            mask |= df["學院"].isin(selected_colleges)
+        if selected_classes:
+            mask |= df["班級"].isin(selected_classes)
+    else:
+        mask = pd.Series(False, index=df.index)
+
+if not mask.any():
+    st.warning("母體篩選後無資料，請調整學院 / 班級選擇。")
+
+df = df[mask]
+
 # infer types
 tagger = SurveyColumnTypeTagger()
 type_rows = []
@@ -367,12 +469,20 @@ qtype = row["qtype"]
 st.divider()
 
 if qtype in ["single_choice", "likert"]:
+    show_all = question in ["學院", "班級"]
     if group_col:
         vc = group_value_counts(df, question, group_col=group_col)
 
-        # top-N by total count
-        totals = vc.groupby(question)["count"].sum().sort_values(ascending=False).head(top_n).index.tolist()
-        vc = vc[vc[question].isin(totals)]
+        if not show_all:
+            # top-N by total count
+            totals = vc.groupby(question)["count"].sum().sort_values(ascending=False).head(top_n).index.tolist()
+            vc = vc[vc[question].isin(totals)]
+
+        # 依學院/班級順序排序
+        if question in ["學院", "班級"]:
+            vc = apply_normalized_order(vc, question, college_order)
+        if group_col in ["學院", "班級"]:
+            vc = apply_normalized_order(vc, group_col, college_order)
 
         if show_pct:
             if pct_mode == "全體百分比":
@@ -387,13 +497,33 @@ if qtype in ["single_choice", "likert"]:
             y_col = "count"
             y_label = "count"
 
-        fig = px.bar(vc, x=question, y=y_col, color=group_col, barmode="group")
+        category_orders = {}
+        if question == "學院":
+            category_orders[question] = college_order
+        elif question == "班級":
+            category_orders[question] = sorted(vc[question].dropna().astype(str).unique(), key=lambda c: parse_class_key(c, college_order))
+        if group_col == "學院":
+            category_orders[group_col] = college_order
+        elif group_col == "班級":
+            category_orders[group_col] = sorted(vc[group_col].dropna().astype(str).unique(), key=lambda c: parse_class_key(c, college_order))
+
+        fig = px.bar(vc, x=question, y=y_col, color=group_col, barmode="group", category_orders=category_orders if category_orders else None)
         fig.update_yaxes(title=y_label)
         st.plotly_chart(fig, width="stretch")
-        st.dataframe(vc.sort_values([y_col], ascending=False), width="stretch")
+        st.dataframe(normalize_display_table(vc.sort_values([y_col], ascending=False)), width="stretch")
     else:
-        vc = df[question].dropna().value_counts().head(top_n).reset_index()
+        vc = df[question].dropna().value_counts().reset_index()
         vc.columns = ["value", "count"]
+        if not show_all:
+            vc = vc.head(top_n)
+
+        if question in ["學院", "班級"]:
+            if question == "學院":
+                order = college_order
+            else:
+                order = sorted(vc["value"].dropna().astype(str).unique(), key=lambda c: parse_class_key(c, college_order))
+            vc["value"] = pd.Categorical(vc["value"].astype(str), categories=order, ordered=True)
+            vc = vc.sort_values("value")
 
         if show_pct:
             vc["percent"] = vc["count"] / vc["count"].sum() * 100
@@ -403,10 +533,12 @@ if qtype in ["single_choice", "likert"]:
             y_col = "count"
             y_label = "count"
 
-        fig = px.bar(vc, x="value", y=y_col)
+        fig = px.bar(vc, x="value", y=y_col, category_orders={"value": order} if question in ["學院", "班級"] else None)
         fig.update_yaxes(title=y_label)
         st.plotly_chart(fig, width="stretch")
-        st.dataframe(vc, width="stretch")
+
+        display_vc = vc.rename(columns={"value": question})
+        st.dataframe(normalize_display_table(display_vc), width="stretch")
 
 elif qtype == "multi_choice":
     if group_col:
