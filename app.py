@@ -357,7 +357,7 @@ question = st.selectbox("選擇題目（欄位）", filtered_questions["column"]
 
 # show classification
 row = types_df[types_df["column"] == question].iloc[0]
-st.info(f"題型判斷：**{row['qtype']}**（信心 {row['confidence']:.2f}）｜{row['reason']}")
+#st.info(f"題型判斷：**{row['qtype']}**（信心 {row['confidence']:.2f}）｜{row['reason']}")
 
 # -----------------------------
 # Plot by type
