@@ -1,0 +1,96 @@
+
+  You can now view your Streamlit app in your browser.
+
+  Local URL: http://localhost:8501
+  Network URL: http://140.128.43.154:8501
+  External URL: http://113.61.170.183:8501
+
+[31m──[0m[31m────────────────────────[0m[31m [0m[1;31mTraceback [0m[1;2;31m(most recent call last)[0m[31m [0m[31m─────────────────────────[0m[31m──[0m
+[31m [0m [2m/home/vender/miniconda3/lib/python3.13/site-packages/streamlit/runtime/scriptrunner/[0m [31m [0m
+[31m [0m [1mexec_code.py[0m:129 in exec_func_with_error_handling                                    [31m [0m
+[31m [0m                                                                                      [31m [0m
+[31m [0m [2m/home/vender/miniconda3/lib/python3.13/site-packages/streamlit/runtime/scriptrunner/[0m [31m [0m
+[31m [0m [1mscript_runner.py[0m:689 in code_to_exec                                                 [31m [0m
+[31m [0m                                                                                      [31m [0m
+[31m [0m [2m/home/vender/大二/[0m[1mapp.py[0m:569 in <module>                                             [31m [0m
+[31m [0m                                                                                      [31m [0m
+[31m [0m   [2m566 [0m[94mif[0m qtype [95min[0m [[33m"[0m[33msingle_choice[0m[33m"[0m, [33m"[0m[33mlikert[0m[33m"[0m]:                                       [31m [0m
+[31m [0m   [2m567 [0m[2m│   [0mshow_all = question [95min[0m [[33m"[0m[33m學院[0m[33m"[0m, [33m"[0m[33m班級[0m[33m"[0m]                                    [31m [0m
+[31m [0m   [2m568 [0m[2m│   [0m[94mif[0m group_col:                                                              [31m [0m
+[31m [0m [31m❱ [0m569 [2m│   │   [0mvc = [1;4mgroup_value_counts(df, question, group_col=group_col)[0m             [31m [0m
+[31m [0m   [2m570 [0m[2m│   │   [0m                                                                       [31m [0m
+[31m [0m   [2m571 [0m[2m│   │   [0m[94mif[0m [95mnot[0m show_all:                                                       [31m [0m
+[31m [0m   [2m572 [0m[2m│   │   │   [0m[2m# top-N by total count[0m                                             [31m [0m
+[31m [0m                                                                                      [31m [0m
+[31m [0m [2m/home/vender/大二/[0m[1mapp.py[0m:285 in group_value_counts                                   [31m [0m
+[31m [0m                                                                                      [31m [0m
+[31m [0m   [2m282 [0m[94mdef[0m[90m [0m[92mgroup_value_counts[0m(df: pd.DataFrame, col: [96mstr[0m, group_col: Optional[[96mstr[0m] =  [31m [0m
+[31m [0m   [2m283 [0m[2m│   [0m[94mif[0m group_col [95mand[0m group_col [95min[0m df.columns:                                  [31m [0m
+[31m [0m   [2m284 [0m[2m│   │   [0mtmp = df[[group_col, col]].dropna()                                    [31m [0m
+[31m [0m [31m❱ [0m285 [2m│   │   [0mout = [1;4mtmp.groupby([group_col, col])[0m.size().reset_index(name=[33m"[0m[33mcount[0m[33m"[0m)   [31m [0m
+[31m [0m   [2m286 [0m[2m│   │   [0m[94mreturn[0m out                                                             [31m [0m
+[31m [0m   [2m287 [0m[2m│   [0m[94melse[0m:                                                                      [31m [0m
+[31m [0m   [2m288 [0m[2m│   │   [0mout = df[col].dropna().value_counts().reset_index()                    [31m [0m
+[31m [0m                                                                                      [31m [0m
+[31m [0m [2m/home/vender/miniconda3/lib/python3.13/site-packages/pandas/core/[0m[1mframe.py[0m:9210 in    [31m [0m
+[31m [0m groupby                                                                              [31m [0m
+[31m [0m                                                                                      [31m [0m
+[31m [0m   [2m 9207 [0m[2m│   │   [0m[94mif[0m level [95mis[0m [94mNone[0m [95mand[0m by [95mis[0m [94mNone[0m:                                     [31m [0m
+[31m [0m   [2m 9208 [0m[2m│   │   │   [0m[94mraise[0m [96mTypeError[0m([33m"[0m[33mYou have to supply one of [0m[33m'[0m[33mby[0m[33m'[0m[33m and [0m[33m'[0m[33mlevel[0m[33m'[0m[33m"[0m)    [31m [0m
+[31m [0m   [2m 9209 [0m[2m│   │   [0m                                                                     [31m [0m
+[31m [0m [31m❱ [0m 9210 [2m│   │   [0m[94mreturn[0m [1;4mDataFrameGroupBy([0m                                             [31m [0m
+[31m [0m   [2m 9211 [0m[2m│   │   │   [0m[1;4mobj=[0m[1;4;96mself[0m[1;4m,[0m                                                        [31m [0m
+[31m [0m   [2m 9212 [0m[2m│   │   │   [0m[1;4mkeys=by,[0m                                                         [31m [0m
+[31m [0m   [2m 9213 [0m[2m│   │   │   [0m[1;4maxis=axis,[0m                                                       [31m [0m
+[31m [0m                                                                                      [31m [0m
+[31m [0m [2m/home/vender/miniconda3/lib/python3.13/site-packages/pandas/core/groupby/[0m[1mgroupby.py[0m: [31m [0m
+[31m [0m 1331 in __init__                                                                     [31m [0m
+[31m [0m                                                                                      [31m [0m
+[31m [0m   [2m1328 [0m[2m│   │   [0m[96mself[0m.dropna = dropna                                                  [31m [0m
+[31m [0m   [2m1329 [0m[2m│   │   [0m                                                                      [31m [0m
+[31m [0m   [2m1330 [0m[2m│   │   [0m[94mif[0m grouper [95mis[0m [94mNone[0m:                                                   [31m [0m
+[31m [0m [31m❱ [0m1331 [2m│   │   │   [0mgrouper, exclusions, obj = [1;4mget_grouper([0m                           [31m [0m
+[31m [0m   [2m1332 [0m[2m│   │   │   │   [0m[1;4mobj,[0m                                                          [31m [0m
+[31m [0m   [2m1333 [0m[2m│   │   │   │   [0m[1;4mkeys,[0m                                                         [31m [0m
+[31m [0m   [2m1334 [0m[2m│   │   │   │   [0m[1;4maxis=axis,[0m                                                    [31m [0m
+[31m [0m                                                                                      [31m [0m
+[31m [0m [2m/home/vender/miniconda3/lib/python3.13/site-packages/pandas/core/groupby/[0m[1mgrouper.py[0m: [31m [0m
+[31m [0m 1038 in get_grouper                                                                  [31m [0m
+[31m [0m                                                                                      [31m [0m
+[31m [0m   [2m1035 [0m[2m│   │   │   │   [0m[94mif[0m gpr.ndim != [94m1[0m:                                             [31m [0m
+[31m [0m   [2m1036 [0m[2m│   │   │   │   │   [0m[2m# non-unique columns; raise here to get the name in the[0m   [31m [0m
+[31m [0m   [2m1037 [0m[2m│   │   │   │   │   [0m[2m# exception message[0m                                       [31m [0m
+[31m [0m [31m❱ [0m1038 [2m│   │   │   │   │   [0m[1;4;94mraise[0m[1;4m [0m[1;4;96mValueError[0m[1;4m([0m[1;4;33mf[0m[1;4;33m"[0m[1;4;33mGrouper for [0m[1;4;33m'[0m[1;4;33m{[0m[1;4mname[0m[1;4;33m}[0m[1;4;33m'[0m[1;4;33m not 1-dimensional[0m [31m [0m
+[31m [0m   [2m1039 [0m[2m│   │   │   │   [0mexclusions.add(name)                                          [31m [0m
+[31m [0m   [2m1040 [0m[2m│   │   │   [0m[94melif[0m obj._is_level_reference(gpr, axis=axis):                     [31m [0m
+[31m [0m   [2m1041 [0m[2m│   │   │   │   [0min_axis, level, gpr = [94mFalse[0m, gpr, [94mNone[0m                        [31m [0m
+[31m────────────────────────────────────────────────────────────────────────────────────────[0m
+[1;91mValueError: [0mGrouper for [32m'班級'[0m not [1;36m1[0m-dimensional
+/home/vender/miniconda3/lib/python3.13/site-packages/streamlit/dataframe_util.py:839: UserWarning:
+
+The DataFrame has column names of mixed type. They will be converted to strings and not roundtrip correctly.
+
+/home/vender/miniconda3/lib/python3.13/site-packages/streamlit/dataframe_util.py:839: UserWarning:
+
+The DataFrame has column names of mixed type. They will be converted to strings and not roundtrip correctly.
+
+/home/vender/miniconda3/lib/python3.13/site-packages/streamlit/dataframe_util.py:839: UserWarning:
+
+The DataFrame has column names of mixed type. They will be converted to strings and not roundtrip correctly.
+
+/home/vender/miniconda3/lib/python3.13/site-packages/streamlit/dataframe_util.py:839: UserWarning:
+
+The DataFrame has column names of mixed type. They will be converted to strings and not roundtrip correctly.
+
+/home/vender/miniconda3/lib/python3.13/site-packages/streamlit/dataframe_util.py:839: UserWarning:
+
+The DataFrame has column names of mixed type. They will be converted to strings and not roundtrip correctly.
+
+/home/vender/miniconda3/lib/python3.13/site-packages/streamlit/dataframe_util.py:839: UserWarning:
+
+The DataFrame has column names of mixed type. They will be converted to strings and not roundtrip correctly.
+
+/home/vender/miniconda3/lib/python3.13/site-packages/streamlit/dataframe_util.py:839: UserWarning:
+
+The DataFrame has column names of mixed type. They will be converted to strings and not roundtrip correctly.
+
