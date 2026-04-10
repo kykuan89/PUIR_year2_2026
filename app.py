@@ -446,7 +446,7 @@ if "show_help_doc" not in st.session_state:
 
 if st.session_state.show_help_doc:
     st.subheader("說明文件")
-    st.text(load_help_document())
+    st.markdown(load_help_document())
     st.divider()
 
 df = load_excel(FILE_PATH, DEFAULT_SHEET)
