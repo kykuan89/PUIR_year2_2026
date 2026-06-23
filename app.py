@@ -429,6 +429,10 @@ def build_table_caption(
     return f"{question_label}的全校統計"
 
 
+def ui_field_label(name: str) -> str:
+    return "系" if name == "學系" else name
+
+
 def load_help_document(path: Path = HELP_DOC_PATH) -> str:
     try:
         return path.read_text(encoding="utf-8")
@@ -488,6 +492,8 @@ meta_candidates = types_df.loc[types_df["qtype"].isin(["meta"]), "column"].tolis
 group_candidates = meta_candidates.copy()
 if "學院" in df.columns and "學院" not in group_candidates:
     group_candidates.insert(0, "學院")
+if "學系" in df.columns and "學系" not in group_candidates:
+    group_candidates.append("學系")
 
 # also allow any column as group (some users put demographics as single_choice)
 extra_group_candidates = types_df.loc[types_df["qtype"].isin(["single_choice", "likert"]), "column"].tolist()
@@ -500,18 +506,33 @@ excluded_group_fields = {"ID", "開始時間", "完成時間"}
 group_candidates = [c for c in group_candidates if c not in excluded_group_fields]
 
 # Filter out question columns for selection
-excluded_question_fields = {"前綴", "學系", "學院"}
+excluded_question_fields = {"前綴", "學院"}
 question_cols = types_df.loc[
-    ~types_df["qtype"].isin(["meta"]) & ~types_df["column"].isin(excluded_question_fields),
+    (~types_df["qtype"].isin(["meta"]) | types_df["column"].eq("學系"))
+    & ~types_df["column"].isin(excluded_question_fields),
     "column",
 ].tolist()
+# keep original order, but place 學系 right before 班級 in question dropdown
+if "學系" in question_cols and "班級" in question_cols:
+    question_cols = [c for c in question_cols if c != "學系"]
+    class_idx = question_cols.index("班級")
+    question_cols.insert(class_idx, "學系")
 filtered_questions = types_df[types_df["column"].isin(question_cols)]
 
 with st.sidebar:
     st.header("分析設定")
-    question = st.selectbox("問卷題目（圖表類別）", filtered_questions["column"].tolist())
+    question = st.selectbox(
+        "問卷題目（圖表類別）",
+        question_cols,
+        format_func=ui_field_label,
+    )
     available_group_options = [opt for opt in ["(不分組)"] + group_candidates if opt == "(不分組)" or opt != question]
-    group_label = st.selectbox("分組比較（群組標籤）", available_group_options, index=0)
+    group_label = st.selectbox(
+        "分組比較（群組標籤）",
+        available_group_options,
+        index=0,
+        format_func=ui_field_label,
+    )
 
     st.divider()
 
@@ -590,7 +611,13 @@ df = df[mask]
 
 # show classification
 row = types_df[types_df["column"] == question].iloc[0]
-table_caption = build_table_caption(question, group_label, selected_colleges, selected_departments, selected_classes)
+table_caption = build_table_caption(
+    ui_field_label(question),
+    ui_field_label(group_label),
+    selected_colleges,
+    selected_departments,
+    selected_classes,
+)
 percent_col_label = get_percent_column_label(pct_mode, group_label)
 #st.info(f"題型判斷：**{row['qtype']}**（信心 {row['confidence']:.2f}）｜{row['reason']}")
 
@@ -602,7 +629,7 @@ qtype = row["qtype"]
 st.divider()
 
 if qtype in ["single_choice", "likert"]:
-    show_all = question in ["學院", "班級"]
+    show_all = question in ["學院", "班級", "學系"]
     if group_col:
         vc = group_value_counts(df, question, group_col=group_col)
 
@@ -820,7 +847,7 @@ elif qtype == "multi_choice_ranked":
 
     # Grouped ranking (optional)
     if group_col:
-        st.markdown(f"### ④ 分組比較（{group_col}）")
+        st.markdown(f"### ④ 分組比較（{ui_field_label(group_col)}）")
         tmp = df[[group_col, question]].dropna()
         groups = tmp[group_col].dropna().astype(str).unique().tolist()
         groups = sorted(groups)[:30]  # 避免類別太多爆炸
