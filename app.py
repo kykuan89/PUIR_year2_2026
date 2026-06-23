@@ -398,10 +398,12 @@ def show_table_caption(text: str):
     )
 
 
-def build_population_text(selected_colleges: list[str], selected_classes: list[str]) -> str:
+def build_population_text(selected_colleges: list[str], selected_departments: list[str], selected_classes: list[str]) -> str:
     parts = []
     if selected_colleges:
         parts.append("、".join(selected_colleges))
+    if selected_departments:
+        parts.append("、".join(selected_departments))
     if selected_classes:
         parts.append("、".join(selected_classes))
     return "；".join(parts)
@@ -411,11 +413,12 @@ def build_table_caption(
     question_label: str,
     group_label: str,
     selected_colleges: list[str],
+    selected_departments: list[str],
     selected_classes: list[str],
 ) -> str:
-    population_text = build_population_text(selected_colleges, selected_classes)
+    population_text = build_population_text(selected_colleges, selected_departments, selected_classes)
     grouped = group_label != "(不分組)"
-    filtered = bool(selected_colleges or selected_classes)
+    filtered = bool(selected_colleges or selected_departments or selected_classes)
 
     if grouped and filtered:
         return f"{question_label}依{group_label}篩選在{population_text}統計"
@@ -464,6 +467,7 @@ df = add_college_column( # 學院標籤
 college_order = COLLEGE_ORDER
 
 selected_colleges = []
+selected_departments = []
 selected_classes = []
 pct_mode = None
 
@@ -512,8 +516,8 @@ with st.sidebar:
     st.divider()
 
     population_attrs = st.multiselect(
-        "學院、班級篩選（可複選交叉比對或留空表示全校）",
-        ["學院", "班級"],
+        "學院、系、班級篩選（可複選交叉比對或留空表示全校）",
+        ["學院", "系", "班級"],
         default=[],
         placeholder="不篩選(全校)",
     )
@@ -525,6 +529,15 @@ with st.sidebar:
         selected_colleges = st.multiselect(
             "選取學院（可多選）",
             college_values + extras,
+            default=[],
+            placeholder="不篩選(全校)",
+        )
+    if "系" in population_attrs and "學系" in df.columns:
+        department_values = [x for x in DEPARTMENT_ORDER if x in df["學系"].dropna().astype(str).unique()]
+        extras = [x for x in sorted(df["學系"].dropna().astype(str).unique()) if x not in department_values]
+        selected_departments = st.multiselect(
+            "選取系（可多選）",
+            department_values + extras,
             default=[],
             placeholder="不篩選(全校)",
         )
@@ -559,23 +572,25 @@ group_col = None if group_label == "(不分組)" else group_label
 # 母體過濾（學院/班級）
 mask = pd.Series(True, index=df.index)
 if population_attrs:
-    if selected_colleges or selected_classes:
+    if selected_colleges or selected_departments or selected_classes:
         mask = pd.Series(False, index=df.index)
         if selected_colleges:
             mask |= df["學院"].isin(selected_colleges)
+        if selected_departments:
+            mask |= df["學系"].isin(selected_departments)
         if selected_classes:
             mask |= df["班級"].isin(selected_classes)
     else:
         mask = pd.Series(False, index=df.index)
 
 if not mask.any():
-    st.warning("母體篩選後無資料，請調整學院 / 班級選擇。")
+    st.warning("母體篩選後無資料，請調整學院 / 系 / 班級選擇。")
 
 df = df[mask]
 
 # show classification
 row = types_df[types_df["column"] == question].iloc[0]
-table_caption = build_table_caption(question, group_label, selected_colleges, selected_classes)
+table_caption = build_table_caption(question, group_label, selected_colleges, selected_departments, selected_classes)
 percent_col_label = get_percent_column_label(pct_mode, group_label)
 #st.info(f"題型判斷：**{row['qtype']}**（信心 {row['confidence']:.2f}）｜{row['reason']}")
 
@@ -686,12 +701,14 @@ elif qtype == "multi_choice":
         tmp = df[[group_col, question]].dropna()
         # explode within each group
         rows = []
+        overall_resp_n = tmp.index.nunique()
         for g, sub in tmp.groupby(group_col):
             ex = explode_multi(sub[question])
             if not ex.empty:
                 cts = ex.value_counts().reset_index()
                 cts.columns = ["option", "count"]
                 cts[group_col] = g
+                cts["_resp_n"] = sub.index.nunique()
                 rows.append(cts)
         if rows:
             out = pd.concat(rows, ignore_index=True)
@@ -699,7 +716,12 @@ elif qtype == "multi_choice":
             top_opts = out.groupby("option")["count"].sum().sort_values(ascending=False).head(top_n).index.tolist()
             out = out[out["option"].isin(top_opts)]
             if show_pct:
-                out = add_percent(out, value_col="option", group_col=group_col)  # 組內%
+                if pct_mode == PCT_OVERALL:
+                    out = out.copy()
+                    out["percent"] = out["count"] / max(overall_resp_n, 1) * 100
+                else:
+                    out = out.copy()
+                    out["percent"] = out["count"] / out["_resp_n"].clip(lower=1) * 100
                 y_col = "percent"
                 y_label = percent_col_label
             else:
@@ -708,12 +730,13 @@ elif qtype == "multi_choice":
 
             _num_ord = try_numeric_order(out["option"].unique())
             _cat_ord = {"option": _num_ord} if _num_ord else None
+            display_out = out.drop(columns=["_resp_n"], errors="ignore")
             fig = px.bar(out, x="option", y=y_col, color=group_col, barmode="group", category_orders=_cat_ord)
             fig.update_yaxes(title=y_label)
             st.plotly_chart(fig, width="stretch", key=f"{question}_{group_col}_multi_group")
             show_table_caption(table_caption)
-            show_table(out.sort_values(y_col, ascending=False), percent_col_label=percent_col_label)
-            show_table(out.sort_values("count", ascending=False), percent_col_label=percent_col_label)
+            show_table(display_out.sort_values(y_col, ascending=False), percent_col_label=percent_col_label)
+            show_table(display_out.sort_values("count", ascending=False), percent_col_label=percent_col_label)
         else:
             st.warning("此題在目前資料中沒有可分析的複選內容。")
     else:
@@ -721,7 +744,7 @@ elif qtype == "multi_choice":
         vc = ex.value_counts().head(top_n).reset_index()
         vc.columns = ["option", "count"]
         if show_pct:
-            vc["percent"] = vc["count"] / vc["count"].sum() * 100
+            vc["percent"] = vc["count"] / max(df[question].dropna().index.nunique(), 1) * 100
             y_col = "percent"
             y_label = percent_col_label
         else:
@@ -812,6 +835,7 @@ elif qtype == "multi_choice_ranked":
                 vc = first.value_counts().head(top_n).reset_index()
                 vc.columns = ["option", "count"]
                 vc[group_col] = g
+                vc["_resp_n"] = sub.index.nunique()
                 rows.append(vc)
             out = pd.concat(rows, ignore_index=True) if rows else pd.DataFrame()
             if out.empty:
@@ -821,7 +845,10 @@ elif qtype == "multi_choice_ranked":
                 top_opts = out.groupby("option")["count"].sum().sort_values(ascending=False).head(top_n).index.tolist()
                 out = out[out["option"].isin(top_opts)]
                 if show_pct:
-                    out["percent"] = out["count"] / out.groupby(group_col)["count"].transform("sum") * 100
+                    if pct_mode == PCT_OVERALL:
+                        out["percent"] = out["count"] / max(tmp.index.nunique(), 1) * 100
+                    else:
+                        out["percent"] = out["count"] / out["_resp_n"].clip(lower=1) * 100
                     y_col = "percent"
                     y_label = percent_col_label
                 else:
@@ -830,7 +857,7 @@ elif qtype == "multi_choice_ranked":
                 fig = px.bar(out, x="option", y=y_col, color=group_col, barmode="group")
                 fig.update_yaxes(title=y_label)
                 st.plotly_chart(fig, width="stretch", key=k("rank_first_group"))
-                show_table(out.sort_values("count", ascending=False))
+                show_table(out.drop(columns=["_resp_n"], errors="ignore").sort_values("count", ascending=False))
 
         else:  # weighted score (use group-wise average)
             rows = []
