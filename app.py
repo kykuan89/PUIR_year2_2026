@@ -446,7 +446,7 @@ def k(name: str) -> str:
 # -----------------------------
 # UI
 # -----------------------------
-st.title("115學年度大二學生學習投入分析")
+st.title("114學年度大二學生學習投入分析")
 
 if "show_help_doc" not in st.session_state:
     st.session_state.show_help_doc = False
