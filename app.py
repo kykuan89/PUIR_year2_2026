@@ -21,7 +21,7 @@ from normalization import (
 # -----------------------------
 # Config
 # -----------------------------
-st.set_page_config(page_title="115-大二學習投入問卷調查互動分析", layout="wide")
+st.set_page_config(page_title="114-大二學習投入問卷調查互動分析", layout="wide")
 
 # 改成你的檔名 / 路徑
 FILE_PATH = "114學年度大二學習投入問卷調查-去識別化.xlsx"
